@@ -11,8 +11,8 @@ PASSWORD="haMLMXirByn6rGVh"  # 默认密码
 PORT=12022  # 默认端口
 OBFS_PARAM="b1af514584f3.microsoft.com"  # 混淆参数
 METHOD="aes-128-gcm"  # 加密方式
-FLAG="HK"  # 节点国家/地区标志
-TITLE="🇭🇰 香港 01丨1x HK"  # 节点标题
+FLAG="KR"  # 节点国家/地区标志
+TITLE="�🇷 韩国 01丨1x KR"  # 节点标题
 
 # 允许用户修改默认值
 read -p "请输入你的域名 (默认: $DOMAIN): " input_domain
