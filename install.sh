@@ -1,57 +1,52 @@
 #!/bin/bash
 
-# ========= 基础设置 =========
-echo "=============================="
-echo "Shadowsocks-libev + WebSocket + TLS 自动安装脚本"
-echo "=============================="
+# ====================
+# Shadowsocks-libev + WebSocket + TLS 全自动部署脚本
+# 适配 Ubuntu 22.04 LTS
+# ====================
 
+# --- 基础输入 ---
 read -p "请输入你的域名（已解析到服务器IP）: " DOMAIN
-read -p "请输入你的连接密码文件完整路径（比如 /home/ubuntu/LightsailDefaultKey-ap-northeast-1.pem）: " PASSWORD_FILE
-PORT=8388
-PATH="/ss"
+read -p "请输入你的连接密码（任意字符串）: " PASSWORD
+PORT=443
+WS_PATH="/ss"
 
-# ========= 读取密码 =========
-if [ -f "$PASSWORD_FILE" ]; then
-    echo "✅ 找到密码文件，读取中..."
-    PASSWORD=$(cat "$PASSWORD_FILE" | tr -d '\r\n')
-else
-    echo "❌ 密码文件不存在，请检查路径！"
-    exit 1
-fi
+# --- 系统更新 ---
+echo "✅ 更新系统中..."
+apt update -y
+apt upgrade -y
 
-# ========= 系统准备 =========
-echo "✅ 更新系统..."
-apt update -y && apt upgrade -y
+# --- 安装必要软件 ---
+echo "✅ 安装 Shadowsocks-libev 和常用工具..."
+apt install -y shadowsocks-libev wget curl unzip socat ufw software-properties-common gnupg2 lsb-release
 
-echo "✅ 安装必要组件..."
-apt install -y shadowsocks-libev wget unzip curl gnupg2 lsb-release ufw socat
-
-# ========= 安装 v2ray-plugin =========
-echo "✅ 安装 v2ray-plugin..."
-wget -qO- https://github.com/shadowsocks/v2ray-plugin/releases/download/v1.3.2/v2ray-plugin-linux-amd64-v1.3.2.tar.gz | tar xz
-mv v2ray-plugin_linux_amd64 /usr/local/bin/v2ray-plugin
+# --- 安装 v2ray-plugin ---
+echo "✅ 下载 v2ray-plugin..."
+wget -O /tmp/v2ray-plugin.tar.gz https://github.com/shadowsocks/v2ray-plugin/releases/download/v1.3.2/v2ray-plugin-linux-amd64-v1.3.2.tar.gz
+tar -xzf /tmp/v2ray-plugin.tar.gz -C /tmp/
+mv /tmp/v2ray-plugin_linux_amd64 /usr/local/bin/v2ray-plugin
 chmod +x /usr/local/bin/v2ray-plugin
 
-# ========= 配置 Shadowsocks-libev =========
-echo "✅ 配置 Shadowsocks..."
+# --- 配置 Shadowsocks ---
+echo "✅ 配置 Shadowsocks-libev..."
 mkdir -p /etc/shadowsocks-libev
 cat > /etc/shadowsocks-libev/config.json << EOF
 {
-    "server":"127.0.0.1",
-    "server_port":$PORT,
-    "password":"$PASSWORD",
-    "timeout":300,
-    "method":"aes-256-gcm",
-    "mode":"tcp_and_udp",
-    "plugin":"v2ray-plugin",
-    "plugin_opts":"server;path=$PATH;host=$DOMAIN"
+  "server":"127.0.0.1",
+  "server_port": 8388,
+  "password":"$PASSWORD",
+  "timeout":300,
+  "method":"aes-256-gcm",
+  "mode":"tcp_and_udp",
+  "plugin":"v2ray-plugin",
+  "plugin_opts":"server;path=$WS_PATH;host=$DOMAIN"
 }
 EOF
 
 systemctl enable shadowsocks-libev
 systemctl restart shadowsocks-libev
 
-# ========= 安装 Caddy2 =========
+# --- 安装 Caddy 2 ---
 echo "✅ 安装 Caddy2..."
 apt install -y debian-keyring debian-archive-keyring apt-transport-https
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-archive-keyring.gpg
@@ -59,11 +54,11 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /
 apt update
 apt install caddy -y
 
-# ========= 配置 Caddy =========
-echo "✅ 配置 Caddy..."
+# --- 配置 Caddy ---
+echo "✅ 配置 Caddy反代..."
 cat > /etc/caddy/Caddyfile << EOF
 $DOMAIN {
-    reverse_proxy $PATH 127.0.0.1:$PORT {
+    reverse_proxy $WS_PATH 127.0.0.1:8388 {
         transport http {
             versions h2c
         }
@@ -75,33 +70,28 @@ EOF
 systemctl enable caddy
 systemctl restart caddy
 
-# ========= 配置防火墙 =========
-echo "✅ 配置防火墙..."
+# --- 配置防火墙 ---
+echo "✅ 开启防火墙并放行必要端口..."
 ufw allow 80
 ufw allow 443
-ufw allow $PORT
+ufw allow 8388
 ufw --force enable
 
-# ========= 开启 TCP BBR 加速 =========
+# --- 启用 TCP BBR 加速 ---
 echo "✅ 开启 TCP BBR 加速..."
 modprobe tcp_bbr
-echo "tcp_bbr" | tee -a /etc/modules-load.d/modules.conf
-sysctl -w net.ipv4.tcp_congestion_control=bbr
-sysctl -w net.core.default_qdisc=fq
+echo "tcp_bbr" >> /etc/modules-load.d/modules.conf
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
 sysctl -p
 
-# ========= 完成 =========
+# --- 完成 ---
 echo "=============================="
-echo "✅ 部署完成！以下是你的连接信息："
-echo "--------------------------------"
-echo "服务器地址: $DOMAIN"
+echo "✅ 部署完成！连接信息如下："
+echo "服务器: $DOMAIN"
 echo "端口: 443"
-echo "密码文件: $PASSWORD_FILE"
-echo "加密方式: aes-256-gcm"
+echo "密码: $PASSWORD"
+echo "加密: aes-256-gcm"
 echo "插件: v2ray-plugin"
-echo "插件参数: path=$PATH;host=$DOMAIN;tls"
-echo "--------------------------------"
-echo "🌟 客户端请使用 WebSocket+TLS 连接！"
+echo "插件参数: path=$WS_PATH;host=$DOMAIN;tls"
 echo "=============================="
