@@ -95,3 +95,48 @@ echo "加密: aes-256-gcm"
 echo "插件: v2ray-plugin"
 echo "插件参数: path=$WS_PATH;host=$DOMAIN;tls"
 echo "=============================="
+
+# --- 生成配置文件 ---
+echo "✅ 正在生成配置文件..."
+SS_BASE64=$(echo -n "aes-256-gcm:$PASSWORD" | base64 -w 0)
+SS_URI="ss://$SS_BASE64@$DOMAIN:443?plugin=v2ray-plugin;path=%2Fss;host=$DOMAIN;tls#SS-WebSocket-TLS"
+
+# 生成Clash配置文件
+cat > ss-config.yaml << EOF
+port: 7890
+socks-port: 7891
+allow-lan: true
+mode: Rule
+log-level: info
+external-controller: 127.0.0.1:9090
+
+proxies:
+  - name: SS-WebSocket-TLS
+    type: ss
+    server: $DOMAIN
+    port: 443
+    cipher: aes-256-gcm
+    password: $PASSWORD
+    plugin: v2ray-plugin
+    plugin-opts:
+      mode: websocket
+      tls: true
+      host: $DOMAIN
+      path: $WS_PATH
+
+proxy-groups:
+  - name: 节点选择
+    type: select
+    proxies:
+      - SS-WebSocket-TLS
+      - DIRECT
+
+rules:
+  - MATCH, 节点选择
+EOF
+
+echo "==============================="
+echo "✅ 配置文件已生成："
+echo "SS链接: $SS_URI"
+echo "Clash配置文件: $(pwd)/ss-config.yaml"
+echo "==============================="

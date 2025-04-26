@@ -1,18 +1,61 @@
+port: 7890
+socks-port: 7891
+allow-lan: true
+mode: Rule
+log-level: info
+external-controller: 127.0.0.1:9090
+secret: ""
+
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  default-nameserver:
+    - 8.8.8.8
+    - 1.1.1.1
+  nameserver:
+    - https://dns.google/dns-query
+    - https://cloudflare-dns.com/dns-query
+  fallback:
+    - tls://8.8.4.4
+    - tls://1.0.0.1
+
 proxies:
-  - name: "东京"
+  - name: 东京
     type: ss
     server: accelerate.jintaiyang.sbs
     port: 443
     cipher: aes-256-gcm
-    password: "tandong1."
+    password: tandong1.
     plugin: v2ray-plugin
     plugin-opts:
       mode: websocket
       tls: true
-      host: cloudflare.com
-      path: "/ss"
-dns:
-  enable: true
-  nameserver:
-    - 8.8.8.8
-    - 8.8.4.4
+      host: accelerate.jintaiyang.sbs
+      path: /ss
+      skip-cert-verify: true
+
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+      - 东京
+      - DIRECT
+
+  - name: 🛡️ 国内直连
+    type: select
+    proxies:
+      - DIRECT
+      - 东京
+
+  - name: 🌍 国外代理
+    type: select
+    proxies:
+      - 东京
+      - DIRECT
+
+rules:
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,cn,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,🚀 节点选择
