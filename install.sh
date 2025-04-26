@@ -1,15 +1,3 @@
-#!/bin/bash
-
-# ========= 基础设置 =========
-echo "=============================="
-echo "Shadowsocks-libev + WebSocket + TLS 一键安装脚本"
-echo "=============================="
-
-read -p "请输入你的域名（已解析到服务器IP）: " DOMAIN
-read -p "请输入你的连接密码（建议复杂点）: " PASSWORD
-PORT=8388
-PATH="/ss"
-
 # ========= 系统准备 =========
 echo "✅ 更新系统..."
 apt update -y && apt upgrade -y
