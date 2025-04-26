@@ -1,3 +1,24 @@
+#!/bin/bash
+
+# ========= 基础设置 =========
+echo "=============================="
+echo "Shadowsocks-libev + WebSocket + TLS 自动安装脚本"
+echo "=============================="
+
+read -p "请输入你的域名（已解析到服务器IP）: " DOMAIN
+read -p "请输入你的连接密码文件完整路径（比如 /home/ubuntu/LightsailDefaultKey-ap-northeast-1.pem）: " PASSWORD_FILE
+PORT=8388
+PATH="/ss"
+
+# ========= 读取密码 =========
+if [ -f "$PASSWORD_FILE" ]; then
+    echo "✅ 找到密码文件，读取中..."
+    PASSWORD=$(cat "$PASSWORD_FILE" | tr -d '\r\n')
+else
+    echo "❌ 密码文件不存在，请检查路径！"
+    exit 1
+fi
+
 # ========= 系统准备 =========
 echo "✅ 更新系统..."
 apt update -y && apt upgrade -y
@@ -38,6 +59,7 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /
 apt update
 apt install caddy -y
 
+# ========= 配置 Caddy =========
 echo "✅ 配置 Caddy..."
 cat > /etc/caddy/Caddyfile << EOF
 $DOMAIN {
@@ -53,17 +75,17 @@ EOF
 systemctl enable caddy
 systemctl restart caddy
 
-# ========= 防火墙放行 =========
+# ========= 配置防火墙 =========
 echo "✅ 配置防火墙..."
 ufw allow 80
 ufw allow 443
 ufw allow $PORT
 ufw --force enable
 
-# ========= 开启 BBR 加速 =========
+# ========= 开启 TCP BBR 加速 =========
 echo "✅ 开启 TCP BBR 加速..."
 modprobe tcp_bbr
-echo "tcp_bbr" >> /etc/modules-load.d/modules.conf
+echo "tcp_bbr" | tee -a /etc/modules-load.d/modules.conf
 sysctl -w net.ipv4.tcp_congestion_control=bbr
 sysctl -w net.core.default_qdisc=fq
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
@@ -76,7 +98,7 @@ echo "✅ 部署完成！以下是你的连接信息："
 echo "--------------------------------"
 echo "服务器地址: $DOMAIN"
 echo "端口: 443"
-echo "密码: $PASSWORD"
+echo "密码文件: $PASSWORD_FILE"
 echo "加密方式: aes-256-gcm"
 echo "插件: v2ray-plugin"
 echo "插件参数: path=$PATH;host=$DOMAIN;tls"
