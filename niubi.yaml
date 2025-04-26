@@ -9,7 +9,7 @@ proxies:
     plugin-opts:
       mode: websocket
       tls: true
-      host: accelerate.jintaiyang.sbs
+      host: cloudflare.com
       path: "/ss"
 dns:
   enable: true
