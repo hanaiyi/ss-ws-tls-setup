@@ -1,0 +1,18 @@
+proxies:
+  - name: "东京"
+    type: ss
+    server: accelerate.jintaiyang.sbs
+    port: 443
+    cipher: aes-256-gcm
+    password: "tandong1."
+    plugin: v2ray-plugin
+    plugin-opts:
+      mode: websocket
+      tls: true
+      host: accelerate.jintaiyang.sbs
+      path: "/ss"
+dns:
+  enable: true
+  nameserver:
+    - 8.8.8.8
+    - 8.8.4.4
